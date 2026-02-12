@@ -1,0 +1,12 @@
+services:
+  panwatch:
+    build: .
+    image: panwatch:latest
+    container_name: panwatch
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai

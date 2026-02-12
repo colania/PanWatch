@@ -1,0 +1,14 @@
+services:
+  panwatch:
+    image: sunxiao0721/panwatch:latest
+    container_name: panwatch
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    restart: always
+    # 加载同目录下的 .env 文件
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Shanghai

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     notify_telegram_bot_token: str = ""
     notify_telegram_chat_id: str = ""
 
+    # Feishu
+    notify_feishu_webhook_token: str = ""
+
     # 代理
     http_proxy: str = ""
 

@@ -180,6 +180,74 @@ def seed_sample_stocks():
         db.close()
 
 
+def seed_channels():
+    """从环境变量初始化通知渠道"""
+    settings = Settings()
+    db = SessionLocal()
+    try:
+        # 1. Telegram
+        if settings.notify_telegram_bot_token and settings.notify_telegram_chat_id:
+            ch_type = "telegram"
+            config = {
+                "bot_token": settings.notify_telegram_bot_token,
+                "chat_id": settings.notify_telegram_chat_id,
+            }
+            # 查找是否已存在
+            existing = (
+                db.query(NotifyChannel).filter(NotifyChannel.type == ch_type).all()
+            )
+            found = False
+            for ch in existing:
+                if ch.config.get("bot_token") == config["bot_token"]:
+                    found = True
+                    break
+
+            if not found:
+                db.add(
+                    NotifyChannel(
+                        name="Telegram Bot (Env)",
+                        type=ch_type,
+                        config=config,
+                        enabled=True,
+                        is_default=True,
+                    )
+                )
+                logger.info("已从环境变量添加 Telegram 渠道")
+
+        # 2. Feishu
+        if settings.notify_feishu_webhook_token:
+            ch_type = "lark"
+            config = {"webhook_token": settings.notify_feishu_webhook_token}
+
+            existing = (
+                db.query(NotifyChannel).filter(NotifyChannel.type == ch_type).all()
+            )
+            found = False
+            for ch in existing:
+                if ch.config.get("webhook_token") == config["webhook_token"]:
+                    found = True
+                    # Update config if needed (e.g. name or other fields, but for now just skip)
+                    break
+
+            if not found:
+                db.add(
+                    NotifyChannel(
+                        name="Feishu Bot (Env)",
+                        type=ch_type,
+                        config=config,
+                        enabled=True,
+                        is_default=True,
+                    )
+                )
+                logger.info("已从环境变量添加 Feishu 渠道")
+
+        db.commit()
+    except Exception as e:
+        logger.error(f"初始化通知渠道失败: {e}")
+    finally:
+        db.close()
+
+
 def seed_agents():
     """初始化内置 Agent 配置"""
     db = SessionLocal()
@@ -1007,9 +1075,7 @@ async def trigger_agent_for_stock(
 
     # 返回详细结果
     skipped = bool(result.raw_data.get("skipped", False))
-    should_alert = bool(
-        result.raw_data.get("should_alert", False if skipped else True)
-    )
+    should_alert = bool(result.raw_data.get("should_alert", False if skipped else True))
     return {
         "code": 0 if not skipped else 1001001,
         "success": not skipped,
@@ -1043,6 +1109,7 @@ async def lifespan(app):
     seed_agents()
     seed_data_sources()
     seed_sample_stocks()
+    seed_channels()
 
     # 后台刷新股票列表缓存
     import threading
