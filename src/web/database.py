@@ -1,8 +1,12 @@
 import json
 import logging
 import os
+import shutil
+from datetime import datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+
+from src.web.migrations import has_pending_migrations, run_versioned_migrations
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +35,10 @@ def init_db():
     _migrate_old_providers(engine)
     _migrate_settings_to_models(engine)
     _migrate_positions_to_accounts(engine)
+    _migrate_remove_stock_enabled(engine)
+    if has_pending_migrations(engine):
+        _backup_db_before_migration()
+    run_versioned_migrations(engine)
 
 
 def _has_column(conn, table: str, column: str) -> bool:
@@ -47,6 +55,26 @@ def _has_table(conn, table: str) -> bool:
         return True
     except Exception:
         return False
+
+
+def _backup_db_before_migration() -> None:
+    """Create a timestamped sqlite backup before versioned migrations."""
+    if not os.path.exists(DB_PATH):
+        return
+    try:
+        size = os.path.getsize(DB_PATH)
+        if size <= 0:
+            return
+    except Exception:
+        return
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = f"{DB_PATH}.bak.{ts}"
+    try:
+        shutil.copy2(DB_PATH, backup_path)
+        logger.info(f"数据库迁移前备份已创建: {backup_path}")
+    except Exception as e:
+        logger.warning(f"数据库迁移前备份失败: {e}")
 
 
 def _migrate(engine):
@@ -378,3 +406,70 @@ def _migrate_positions_to_accounts(engine):
 
         conn.commit()
         logger.info(f"已迁移 {len(stocks_with_position)} 条持仓数据到默认账户")
+
+
+def _migrate_remove_stock_enabled(engine):
+    """移除历史 stocks.enabled 软删除字段并清理残留数据。"""
+    with engine.connect() as conn:
+        if not _has_table(conn, "stocks") or not _has_column(conn, "stocks", "enabled"):
+            return
+
+        # 历史软删除数据：无任何关联则直接删除；有关联则恢复为有效股票。
+        conn.execute(
+            text(
+                """
+DELETE FROM stocks
+WHERE COALESCE(enabled, 1) = 0
+  AND id NOT IN (SELECT DISTINCT stock_id FROM positions)
+  AND id NOT IN (SELECT DISTINCT stock_id FROM stock_agents)
+  AND id NOT IN (SELECT DISTINCT stock_id FROM price_alert_rules)
+"""
+            )
+        )
+        conn.execute(text("UPDATE stocks SET enabled = 1 WHERE COALESCE(enabled, 1) = 0"))
+        conn.commit()
+
+        # 优先直接删列；旧版 SQLite 不支持时，重建表以确保物理移除。
+        try:
+            conn.execute(text("ALTER TABLE stocks DROP COLUMN enabled"))
+            conn.commit()
+            logger.info("已移除 stocks.enabled 列")
+        except Exception:
+            conn.rollback()
+            logger.info("当前 SQLite 不支持 DROP COLUMN，改为重建 stocks 表移除 enabled")
+            conn.execute(text("PRAGMA foreign_keys=OFF"))
+            conn.execute(
+                text(
+                    """
+CREATE TABLE IF NOT EXISTS stocks__new (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  symbol VARCHAR NOT NULL,
+  name VARCHAR NOT NULL,
+  market VARCHAR NOT NULL,
+  cost_price FLOAT,
+  quantity INTEGER,
+  invested_amount FLOAT,
+  sort_order INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+"""
+                )
+            )
+            conn.execute(
+                text(
+                    """
+INSERT INTO stocks__new (
+  id, symbol, name, market, cost_price, quantity, invested_amount, sort_order, created_at, updated_at
+)
+SELECT
+  id, symbol, name, market, cost_price, quantity, invested_amount, COALESCE(sort_order, 0), created_at, updated_at
+FROM stocks
+"""
+                )
+            )
+            conn.execute(text("DROP TABLE stocks"))
+            conn.execute(text("ALTER TABLE stocks__new RENAME TO stocks"))
+            conn.execute(text("PRAGMA foreign_keys=ON"))
+            conn.commit()
+            logger.info("已通过重建表移除 stocks.enabled 列")

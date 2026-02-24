@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { Check, Eye, EyeOff, Plus, Pencil, Trash2, Star, Send, Cpu, Play, Download, Upload, FileJson, BarChart3, TrendingUp } from 'lucide-react'
-import { fetchAPI, type AIService, type AIModel, type NotifyChannel } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { useToast } from '@/components/ui/toast'
+import { fetchAPI, type AIService, type AIModel, type NotifyChannel } from '@panwatch/api'
+import { Input } from '@panwatch/base-ui/components/ui/input'
+import { Label } from '@panwatch/base-ui/components/ui/label'
+import { Button } from '@panwatch/base-ui/components/ui/button'
+import { Switch } from '@panwatch/base-ui/components/ui/switch'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@panwatch/base-ui/components/ui/dialog'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@panwatch/base-ui/components/ui/select'
+import { useToast } from '@panwatch/base-ui/components/ui/toast'
 
 interface Setting {
   key: string
@@ -196,7 +196,6 @@ export default function SettingsPage() {
         agents: [
           { name: 'premarket_outlook', enabled: true, schedule: '30 8 * * 1-5', execution_mode: 'batch' },
           { name: 'daily_report', enabled: true, schedule: '30 15 * * 1-5', execution_mode: 'batch' },
-          { name: 'news_digest', enabled: true, schedule: '0 */3 * * 1-5', execution_mode: 'batch' },
           { name: 'intraday_monitor', enabled: true, schedule: '*/10 9-15 * * 1-5', execution_mode: 'single', config: { event_only: true, price_alert_threshold: 4.0, volume_alert_ratio: 2.5, throttle_minutes: 45 } },
         ],
       },
@@ -213,7 +212,6 @@ export default function SettingsPage() {
         agents: [
           { name: 'premarket_outlook', enabled: true, schedule: '30 8 * * 1-5', execution_mode: 'batch' },
           { name: 'daily_report', enabled: true, schedule: '30 15 * * 1-5', execution_mode: 'batch' },
-          { name: 'news_digest', enabled: true, schedule: '0 */2 * * 1-5', execution_mode: 'batch' },
           { name: 'intraday_monitor', enabled: true, schedule: '*/5 9-15 * * 1-5', execution_mode: 'single', config: { event_only: true, price_alert_threshold: 3.0, volume_alert_ratio: 2.0, throttle_minutes: 30 } },
         ],
       },
@@ -230,7 +228,6 @@ export default function SettingsPage() {
         agents: [
           { name: 'premarket_outlook', enabled: true, schedule: '10 8 * * 1-5', execution_mode: 'batch' },
           { name: 'daily_report', enabled: true, schedule: '10 15 * * 1-5', execution_mode: 'batch' },
-          { name: 'news_digest', enabled: true, schedule: '0 * * * 1-5', execution_mode: 'batch' },
           { name: 'intraday_monitor', enabled: true, schedule: '*/3 9-15 * * 1-5', execution_mode: 'single', config: { event_only: true, price_alert_threshold: 2.0, volume_alert_ratio: 1.8, throttle_minutes: 20 } },
         ],
       },

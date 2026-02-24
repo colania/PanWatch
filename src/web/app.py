@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Depends
-from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.web.api import (
@@ -22,6 +21,9 @@ from src.web.api import (
     feedback,
     discovery,
     price_alerts,
+    context,
+    recommendations,
+    dashboard,
 )
 from src.web.api import insights
 from src.web.api.auth import get_current_user
@@ -93,6 +95,9 @@ app.include_router(
     history.router, prefix="/api", tags=["history"], dependencies=protected
 )
 app.include_router(
+    context.router, prefix="/api", tags=["context"], dependencies=protected
+)
+app.include_router(
     news.router, prefix="/api/news", tags=["news"], dependencies=protected
 )
 app.include_router(
@@ -124,6 +129,18 @@ app.include_router(
     price_alerts.router,
     prefix="/api/price-alerts",
     tags=["price-alerts"],
+    dependencies=protected,
+)
+app.include_router(
+    recommendations.router,
+    prefix="/api/recommendations",
+    tags=["recommendations"],
+    dependencies=protected,
+)
+app.include_router(
+    dashboard.router,
+    prefix="/api/dashboard",
+    tags=["dashboard"],
     dependencies=protected,
 )
 
